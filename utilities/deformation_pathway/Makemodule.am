@@ -1,0 +1,11 @@
+bin_PROGRAMS += _casmutils-deformation-pathway
+
+_casmutils_deformation_pathway_SOURCES=\
+						  utilities/deformation_pathway/deformation_pathway.cpp
+
+
+_casmutils_deformation_pathway_LDADD=\
+						libcasmutils.la\
+						$(BOOST_SYSTEM_LIB)\
+						$(BOOST_FILESYSTEM_LIB)\
+						$(BOOST_PROGRAM_OPTIONS_LIB)
