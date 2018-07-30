@@ -4,6 +4,7 @@
 #include <boost/filesystem.hpp>
 #include <casm/CASM_global_definitions.hh>
 #include <casm/casm_io/Log.hh>
+#include <casm/app/AppIO.hh>
 #include <casm/casm_io/jsonParser.hh>
 #include <casm/clex/ConfigDoF.hh>
 #include <casm/clex/ConfigEnumInterpolation.hh>
@@ -71,8 +72,8 @@ void _rigid_rotate(Rewrap::Structure* struc, Eigen::Matrix3d& rot_mat)
 }
 
 } // namespace
-std::pair<Rewrap::Structure, Eigen::Matrix3i> _minimally_distorted_structure(Rewrap::Structure& ref_struc,
-                                                                             Rewrap::Structure& deformed_struc)
+std::pair<Rewrap::Structure, Eigen::Matrix3i> _minimally_distorted_structure(const Rewrap::Structure& ref_struc,
+                                                                             const Rewrap::Structure& deformed_struc)
 {
     CASM::PrimClex* pclex = new CASM::PrimClex(ref_struc, CASM::null_log());
     CASM::ConfigMapper mapper(*pclex, 0.5);
@@ -83,13 +84,14 @@ std::pair<Rewrap::Structure, Eigen::Matrix3i> _minimally_distorted_structure(Rew
     return std::make_pair(_apply_configdof(scel, _sym_break_projection(scel, mapped_dof)), scel.transf_mat());
 }
 
-Rewrap::Structure minimally_distorted_structure(Rewrap::Structure& ref_struc, Rewrap::Structure& deformed_struc)
+Rewrap::Structure minimally_distorted_structure(const Rewrap::Structure& ref_struc,
+                                                const Rewrap::Structure& deformed_struc)
 {
     return _minimally_distorted_structure(ref_struc, deformed_struc).first;
 }
 
-std::pair<Rewrap::Structure, Eigen::Matrix3i> _distorted_structure(Rewrap::Structure& ref_struc,
-                                                                   Rewrap::Structure& deformed_struc)
+std::pair<Rewrap::Structure, Eigen::Matrix3i> _distorted_structure(const Rewrap::Structure& ref_struc,
+                                                                   const Rewrap::Structure& deformed_struc)
 {
     CASM::PrimClex* pclex = new CASM::PrimClex(ref_struc, CASM::null_log());
     CASM::ConfigMapper mapper(*pclex, 0.5);
@@ -99,11 +101,12 @@ std::pair<Rewrap::Structure, Eigen::Matrix3i> _distorted_structure(Rewrap::Struc
     CASM::Supercell scel(pclex, mapped_lat);
     return std::make_pair(_apply_configdof(scel, mapped_configdof), scel.transf_mat());
 }
-Rewrap::Structure distorted_structure(Rewrap::Structure& ref_struc, Rewrap::Structure& deformed_struc)
+Rewrap::Structure distorted_structure(const Rewrap::Structure& ref_struc, const Rewrap::Structure& deformed_struc)
 {
     return _distorted_structure(ref_struc, deformed_struc).first;
 }
-std::vector<Rewrap::Structure> interpolate(Rewrap::Structure& init_struc, Rewrap::Structure& final_struc, int n_images)
+std::vector<Rewrap::Structure> interpolate(const Rewrap::Structure& init_struc, const Rewrap::Structure& final_struc,
+                                           int n_images)
 {
     std::cout << "initial lattice " << init_struc.lattice().lat_column_mat() << std::endl;
     std::cout << "final lattice " << final_struc.lattice().lat_column_mat() << std::endl;
@@ -119,23 +122,30 @@ std::vector<Rewrap::Structure> interpolate(Rewrap::Structure& init_struc, Rewrap
     init_config.init_deformation();
     init_config.init_displacement();
     CASM::Configuration final_config(scel, CASM::jsonParser(), mapped_configdof);
-    std::cout << "init_config lattice" << init_config.supercell().lattice().lat_column_mat() << std::endl;
-    std::cout << "final_config lattice" << final_config.supercell().lattice().lat_column_mat() << std::endl;
-    std::cout << "final_config deformation" << final_config.deformation() << std::endl;
+    // std::cout << "init_config lattice" << init_config.supercell().lattice().lat_column_mat() << std::endl;
+    // std::cout << "final_config lattice" << final_config.supercell().lattice().lat_column_mat() << std::endl;
+    // std::cout << "final_config deformation" << final_config.deformation() << std::endl;
     auto new_F = CASM::StrainConverter::right_stretch_tensor(final_config.deformation());
     final_config.set_deformation(new_F);
-    std::cout << "final_config deformation new" << new_F << std::endl;
-
+    // std::cout << "final_config deformation new" << new_F << std::endl;
+    // std::cout << "i_occ,i_def,i_disp,f_occ,f_def,f_disp" << init_config.has_occupation() <<
+    // init_config.has_deformation() << init_config.has_displacement() << final_config.has_occupation() <<
+    // final_config.has_deformation() << final_config.has_displacement() << std::endl; std::cout << "interpolator
+    // attempt to initialize" << std::endl;
     CASM::ConfigEnumInterpolation interpolator(init_config, final_config, n_images);
+    // std::cout << "interpolator initialized" << std::endl;
+    // int count = 0;
     for (auto& image : interpolator)
     {
+        //    std::cout << "image no " << count << std::endl;
         images.push_back(make_deformed_struc(image));
+        // count++;
     }
     return images;
 }
 
-std::vector<Rewrap::Structure> deformation_pathway(Rewrap::Structure& init_struc, Rewrap::Structure& final_struc,
-                                                   int n_images, bool minimal)
+std::vector<Rewrap::Structure> deformation_pathway(const Rewrap::Structure& init_struc,
+                                                   const Rewrap::Structure& final_struc, int n_images, bool minimal)
 {
     Rewrap::Structure mapped_struc = final_struc;
     Eigen::Matrix3i transfmat = Eigen::Matrix3i::Identity();
@@ -159,4 +169,76 @@ std::vector<Rewrap::Structure> deformation_pathway(Rewrap::Structure& init_struc
     config.init_displacement();
     Rewrap::Structure first_image = make_deformed_struc(config);
     return interpolate(first_image, mapped_struc, n_images);
+}
+
+std::pair<double, bool> gus_entry(const Rewrap::Structure& host_struc, const Rewrap::Structure& test_struc,
+                                  bool sym_break_only)
+{
+    double score = 1e9;
+    bool grp_sbgrp = false;
+    CASM::PrimClex pclex(host_struc, CASM::null_log());
+    CASM::ConfigMapper mapper(pclex, 0.5);
+    //mapper.restricted();
+    double divisor = 1.0 * test_struc.basis.size() / host_struc.basis.size();
+    CASM::ConfigDoF mapped_dof;
+    CASM::Lattice mapped_lat;
+    if (floor(divisor) == divisor && mapper.struc_to_configdof(test_struc, mapped_dof, mapped_lat))
+    {
+        CASM::Supercell scel(&pclex, mapped_lat);
+        if (sym_break_only)
+        {
+            mapped_dof = _sym_break_projection(scel, mapped_dof);
+        }
+        CASM::Configuration config(scel, CASM::jsonParser(), mapped_dof);
+        double sc = CASM::ConfigMapping::strain_cost(test_struc.lattice(), mapped_dof, test_struc.basis.size());
+        double bc = CASM::ConfigMapping::basis_cost(mapped_dof, test_struc.basis.size());
+        score = (mapper.lattice_weight() * sc + (1.0 - mapper.lattice_weight()) * bc);
+        double ratio =
+            1.0 * host_struc.factor_group().size() / config.multiplicity() / test_struc.factor_group().size();
+        grp_sbgrp = floor(ratio) == ratio;
+    }
+    return std::make_pair(score, grp_sbgrp);
+}
+
+std::vector<Rewrap::Structure> read_and_rename_json(const Rewrap::fs::path& struc_folder)
+{
+    std::vector<Rewrap::Structure> prim_list;
+    for (auto& struc_path : Rewrap::fs::directory_iterator(struc_folder))
+    {
+        if (Rewrap::fs::is_regular(struc_path))
+        {
+            Rewrap::Structure prim = CASM::Structure(CASM::read_prim(CASM::jsonParser(struc_path), 1e-4));
+            prim.title = struc_path.path().filename().string();
+            prim_list.push_back(prim);
+        }
+    }
+    return prim_list;
+}
+
+std::vector<Rewrap::Structure> read_and_rename_poscar(const Rewrap::fs::path& struc_folder)
+{
+    std::vector<Rewrap::Structure> struc_list;
+    for (const auto& struc_path : Rewrap::fs::directory_iterator(struc_folder))
+    {
+        if (Rewrap::fs::is_regular(struc_path))
+        {
+            Rewrap::Structure struc= Rewrap::Structure::from_poscar(struc_path);
+            struc.title = struc_path.path().filename().string();
+            struc_list.push_back(struc);
+        }
+    }
+    return struc_list;
+}
+
+
+Rewrap::Structure reassign_all_occs(const Rewrap::Structure &original, const std::set<std::string> &occ_list){
+	Rewrap::Structure copy = original;
+	std::vector<CASM::Molecule> dof_list;
+	for (auto it = occ_list.begin();it!=occ_list.end();++it){
+		        dof_list.emplace_back(CASM::Molecule::make_atom(*it));
+				    }
+	for ( auto &site : copy.basis){
+		site.set_allowed_species(dof_list);
+	}
+	return copy;
 }

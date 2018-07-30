@@ -7,3 +7,4 @@ include utilities/coord_shift/Makemodule.am
 include utilities/vacuum_pack/Makemodule.am
 include utilities/inflate/Makemodule.am
 include utilities/deformation_pathway/Makemodule.am
+include utilities/gus/Makemodule.am

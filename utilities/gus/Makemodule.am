@@ -1,0 +1,11 @@
+bin_PROGRAMS += _casmutils-gus
+
+_casmutils_gus_SOURCES=\
+						  utilities/gus/gus.cpp
+
+
+_casmutils_gus_LDADD=\
+						libcasmutils.la\
+						$(BOOST_SYSTEM_LIB)\
+						$(BOOST_FILESYSTEM_LIB)\
+						$(BOOST_PROGRAM_OPTIONS_LIB)
