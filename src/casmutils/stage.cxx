@@ -178,7 +178,7 @@ std::pair<double, bool> gus_entry(const Rewrap::Structure& host_struc, const Rew
     bool grp_sbgrp = false;
     CASM::PrimClex pclex(host_struc, CASM::null_log());
     CASM::ConfigMapper mapper(pclex, 0.5);
-    //mapper.restricted();
+    mapper.restricted();
     double divisor = 1.0 * test_struc.basis.size() / host_struc.basis.size();
     CASM::ConfigDoF mapped_dof;
     CASM::Lattice mapped_lat;
