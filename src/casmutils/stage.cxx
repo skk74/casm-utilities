@@ -3,8 +3,8 @@
 #include "casmutils/structure.hpp"
 #include <boost/filesystem.hpp>
 #include <casm/CASM_global_definitions.hh>
-#include <casm/casm_io/Log.hh>
 #include <casm/app/AppIO.hh>
+#include <casm/casm_io/Log.hh>
 #include <casm/casm_io/jsonParser.hh>
 #include <casm/clex/ConfigDoF.hh>
 #include <casm/clex/ConfigEnumInterpolation.hh>
@@ -222,7 +222,7 @@ std::vector<Rewrap::Structure> read_and_rename_poscar(const Rewrap::fs::path& st
     {
         if (Rewrap::fs::is_regular(struc_path))
         {
-            Rewrap::Structure struc= Rewrap::Structure::from_poscar(struc_path);
+            Rewrap::Structure struc = Rewrap::Structure::from_poscar(struc_path);
             struc.title = struc_path.path().filename().string();
             struc_list.push_back(struc);
         }
@@ -230,15 +230,56 @@ std::vector<Rewrap::Structure> read_and_rename_poscar(const Rewrap::fs::path& st
     return struc_list;
 }
 
+Rewrap::Structure reassign_all_occs(const Rewrap::Structure& original, const std::set<std::string>& occ_list)
+{
+    Rewrap::Structure copy = original;
+    std::vector<CASM::Molecule> dof_list;
+    for (auto it = occ_list.begin(); it != occ_list.end(); ++it)
+    {
+        dof_list.emplace_back(CASM::Molecule::make_atom(*it));
+    }
+    for (auto& site : copy.basis)
+    {
+        site.set_allowed_species(dof_list);
+    }
+    return copy;
+}
 
-Rewrap::Structure reassign_all_occs(const Rewrap::Structure &original, const std::set<std::string> &occ_list){
-	Rewrap::Structure copy = original;
-	std::vector<CASM::Molecule> dof_list;
-	for (auto it = occ_list.begin();it!=occ_list.end();++it){
-		        dof_list.emplace_back(CASM::Molecule::make_atom(*it));
-				    }
-	for ( auto &site : copy.basis){
-		site.set_allowed_species(dof_list);
-	}
-	return copy;
+Rewrap::Structure symmetrize(const Rewrap::Structure& struc, double tol)
+{
+	std::set<int> point_group_sizes {1,2,3,4,6,8,12,16,24,48};
+	Rewrap::Structure sym_struc=struc;
+    int biggest = struc.factor_group().size();
+    for (double f = 0.1; f < 1.1; f += 0.1)
+    {
+		CASM::Structure tmp = struc;
+        // a) symmetrize the lattice vectors
+		CASM::Lattice lat = tmp.lattice();
+        lat.symmetrize(tol * f);
+        lat.set_tol(tol * f);
+		CASM::SymGroup pg;
+        lat.generate_point_group(pg);
+        if (point_group_sizes.find(pg.size()) == point_group_sizes.end())
+        {
+            continue;
+        }
+        tmp.set_lattice(lat, CASM::FRAC);
+
+        tmp.factor_group();
+        // b) find factor group with same tolerance
+        tmp.fg_converge(tol * f);
+        if (point_group_sizes.find(tmp.point_group().size()) == point_group_sizes.end())
+        {
+            continue;
+        }
+
+        // c) symmetrize the basis sites
+        tmp.symmetrize(tmp.factor_group());
+        if (tmp.factor_group().is_group(f * tol) && (tmp.factor_group().size() > biggest))
+        {
+            sym_struc=tmp;
+            biggest = tmp.factor_group().size();
+        }
+    }
+	return sym_struc;
 }

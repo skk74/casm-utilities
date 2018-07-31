@@ -48,4 +48,7 @@ std::vector<Rewrap::Structure> read_and_rename_poscar(const Rewrap::fs::path& st
 ///This function replaces all occupants of a structure with the given vector of occupant names
 Rewrap::Structure reassign_all_occs(const Rewrap::Structure &original, const std::set<std::string> &occ_list);
 
+///This function returns a symmetrized version of the given structure with a relaxed tolerance
+Rewrap::Structure symmetrize(const Rewrap::Structure &struc, double tol);
+
 #endif
