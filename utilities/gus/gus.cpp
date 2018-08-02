@@ -6,7 +6,7 @@
 #include <casm/crystallography/Structure.hh>
 #include <fstream>
 #include <iostream>
-#include <sqlite3.h>
+#include "sqlite3.h"
 
 namespace Utilities
 {
@@ -61,9 +61,11 @@ int main(int argc, char* argv[])
 
     auto library_path = gus_launch.fetch<fs::path>("library");
     auto struc_path = gus_launch.fetch<fs::path>("structure-folder");
-
+	std::cout << "paths loaded" << std::endl;
     auto lib_list = read_and_rename_json(library_path);
+	std::cout << "lib list ready" << std::endl;
     auto struc_list = read_and_rename_poscar(struc_path);
+	std::cout << "poscar list ready" << std::endl;
     sqlite3* db;
     sqlite3_stmt* stmt;
     char* zErrMsg = 0;

@@ -177,12 +177,12 @@ std::pair<double, bool> gus_entry(const Rewrap::Structure& host_struc, const Rew
     double score = 1e9;
     bool grp_sbgrp = false;
     CASM::PrimClex pclex(host_struc, CASM::null_log());
-    CASM::ConfigMapper mapper(pclex, 0.5);
+    CASM::ConfigMapper mapper(pclex, 0.5,0.2);
     mapper.restricted();
-    double divisor = 1.0 * test_struc.basis.size() / host_struc.basis.size();
+    //double divisor = 1.0 * test_struc.basis.size() / host_struc.basis.size();
     CASM::ConfigDoF mapped_dof;
     CASM::Lattice mapped_lat;
-    if (floor(divisor) == divisor && mapper.struc_to_configdof(test_struc, mapped_dof, mapped_lat))
+    if (/*floor(divisor) == divisor &&*/ mapper.struc_to_configdof(test_struc, mapped_dof, mapped_lat))
     {
         CASM::Supercell scel(&pclex, mapped_lat);
         if (sym_break_only)
