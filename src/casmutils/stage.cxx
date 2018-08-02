@@ -15,6 +15,7 @@
 #include <casm/crystallography/Structure.hh>
 #include <casm/strain/StrainConverter.hh>
 #include <fstream>
+#include <set>
 
 namespace
 {
@@ -70,6 +71,8 @@ void _rigid_rotate(Rewrap::Structure* struc, Eigen::Matrix3d& rot_mat)
     struc->set_lattice(CASM::Lattice(rot_mat * struc->lattice().lat_column_mat() * rot_mat.transpose()), CASM::FRAC);
     return;
 }
+
+
 
 } // namespace
 std::pair<Rewrap::Structure, Eigen::Matrix3i> _minimally_distorted_structure(const Rewrap::Structure& ref_struc,
@@ -195,7 +198,29 @@ std::pair<double, bool> gus_entry(const Rewrap::Structure& host_struc, const Rew
         score = (mapper.lattice_weight() * sc + (1.0 - mapper.lattice_weight()) * bc);
         double ratio =
             1.0 * host_struc.factor_group().size() / config.multiplicity() / test_struc.factor_group().size();
-        grp_sbgrp = floor(ratio) == ratio;
+		std::vector<int> sbgrp_sizes;
+		auto tree_pair=host_struc.factor_group().unique_subgroup_tree();
+		std::string curr_name=test_struc.factor_group().get_name();
+		auto subgroup_it=std::find_if(tree_pair.first.begin(),tree_pair.first.end(),[&curr_name](const CASM::SymGroup&g){return g.get_name()==curr_name;});
+		auto subgroup_index=std::distance(tree_pair.first.begin(),subgroup_it);
+		if (subgroup_index < tree_pair.first.size()){
+			grp_sbgrp= tree_pair.second[subgroup_index].size()==2;
+		}
+		std::cout << "DEBUGGING: host_struc.title " << host_struc.title  << std::endl;
+		std::cout << "DEBUGGING: test_struc.title " << test_struc.title  << std::endl;
+		std::cout << "DEBUGGING: host_struc.factor_group().name " << host_struc.factor_group().get_name()  << std::endl;
+		std::cout << "DEBUGGING: test_struc.factor_group().name " << test_struc.factor_group().get_name()  << std::endl;
+		std::cout << "DEBUGGING: host_struc.factor_group().size() / config.multiplicity()" << host_struc.factor_group().size() / config.multiplicity() << std::endl;
+		std::set<int> fl_sizes;
+		for ( int i=0;i< tree_pair.second.size();++i){
+			if (tree_pair.second[i].size()==2){
+				fl_sizes.insert(tree_pair.first[i].size());
+			}
+		}
+		for (auto size : fl_sizes){
+			std::cout << "first level subgroup size: " << size << std::endl;
+		}	
+        //grp_sbgrp = (floor(ratio) == ratio && std::find(fl_sizes.begin(),fl_sizes.end(),host_struc.factor_group().size()/config.multiplicity())!=fl_sizes.end());
     }
     return std::make_pair(score, grp_sbgrp);
 }
