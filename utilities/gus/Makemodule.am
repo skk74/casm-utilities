@@ -1,8 +1,7 @@
 bin_PROGRAMS += _casmutils-gus
 
 _casmutils_gus_SOURCES=\
-						  utilities/gus/gus.cpp\
-						  ../../sqlite3/sqlite-snapshot-201807272333/sqlite3.c 
+						  utilities/gus/gus.cpp
 						  
 
 
