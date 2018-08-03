@@ -2,11 +2,11 @@
 #include "casmutils/handlers.hpp"
 #include "casmutils/stage.hpp"
 #include "casmutils/structure.hpp"
+#include "sqlite3.h"
 #include <boost/program_options.hpp>
 #include <casm/crystallography/Structure.hh>
 #include <fstream>
 #include <iostream>
-#include "sqlite3.h"
 
 namespace Utilities
 {
@@ -61,11 +61,11 @@ int main(int argc, char* argv[])
 
     auto library_path = gus_launch.fetch<fs::path>("library");
     auto struc_path = gus_launch.fetch<fs::path>("structure-folder");
-	std::cout << "paths loaded" << std::endl;
+    std::cout << "paths loaded" << std::endl;
     auto lib_list = read_and_rename_json(library_path);
-	std::cout << "lib list ready" << std::endl;
+    std::cout << "lib list ready" << std::endl;
     auto struc_list = read_and_rename_poscar(struc_path);
-	std::cout << "poscar list ready" << std::endl;
+    std::cout << "poscar list ready" << std::endl;
     sqlite3* db;
     sqlite3_stmt* stmt;
     char* zErrMsg = 0;
@@ -81,6 +81,7 @@ int main(int argc, char* argv[])
         for (int j = 0; j < struc_list.size(); j++)
         {
             int already_exists = 0;
+            sqlite3_stmt* stmt;
             std::string name = struc_list[j].title + "_onto_" + lib_list[i].title;
             std::cout << name << std::endl;
             sqlite3_prepare(db, ("SELECT EXISTS(SELECT 1 FROM prefilter WHERE name='" + name + "');").c_str(), -1,
@@ -150,6 +151,7 @@ int main(int argc, char* argv[])
         for (int j = 0; j < non_prefiltered.size(); j++)
         {
             int already_exists = 0;
+            sqlite3_stmt* stmt;
             std::string name = non_prefiltered[j].title + "_onto_" + prim_list[i].title;
             std::cout << name << std::endl;
             sqlite3_prepare(db, ("SELECT EXISTS(SELECT 1 FROM first_pass WHERE name='" + name + "');").c_str(), -1,
@@ -191,29 +193,33 @@ int main(int argc, char* argv[])
     std::map<std::string, double> upper_sym_limits;
     while (res)
     {
-        upper_sym_limits.insert(std::make_pair(std::string(reinterpret_cast<const char*>(res)),
-					std::stod(std::string(reinterpret_cast<const char*>(sqlite3_column_text(stmt,1))))));
+        upper_sym_limits.insert(
+            std::make_pair(std::string(reinterpret_cast<const char*>(res)),
+                           std::stod(std::string(reinterpret_cast<const char*>(sqlite3_column_text(stmt, 1))))));
         sqlite3_step(stmt);
-    	res = sqlite3_column_text(stmt, 0);
+        res = sqlite3_column_text(stmt, 0);
     }
     sqlite3_finalize(stmt);
     for (auto& item : upper_sym_limits)
     {
-		item.second = sqrt(item.second);
-		item.second = std::min(item.second,0.1);
+        item.second = sqrt(item.second);
+        item.second = std::min(item.second, 0.1);
     }
-	std::vector< Rewrap::Structure> sym_strucs;
-	for (const auto & struc : prim_list){
-		std::string name= struc.title + "symmed";
-		Rewrap::Structure symmed=symmetrize(struc,upper_sym_limits[struc.title]);
-		if (symmed.factor_group().size() > struc.factor_group().size()){
-			auto primmed_symmed = symmetrize(Simplicity::make_primitive(symmed),upper_sym_limits[struc.title]);
-			symmed.title=name;
-			sym_strucs.push_back(primmed_symmed);
-		}
-	}
+    std::vector<Rewrap::Structure> sym_strucs;
+    for (const auto& struc : prim_list)
+    {
+        std::string name = struc.title + "symmed";
+        Rewrap::Structure symmed = symmetrize(struc, upper_sym_limits[struc.title]);
+        if (symmed.factor_group().size() > struc.factor_group().size())
+        {
+            auto primmed_symmed = symmetrize(Simplicity::make_primitive(symmed), upper_sym_limits[struc.title]);
+            symmed.title = name;
+            sym_strucs.push_back(primmed_symmed);
+        }
+    }
     sqlite3_exec(
-        db, "create table if not exists second_pass (name text, host text, struc text, score real, grp_sbgrp integer); ",
+        db,
+        "create table if not exists second_pass (name text, host text, struc text, score real, grp_sbgrp integer); ",
         callback, 0, &zErrMsg);
 #pragma omp parallel for
     for (int i = 0; i < sym_strucs.size(); i++)
@@ -222,6 +228,7 @@ int main(int argc, char* argv[])
         for (int j = 0; j < non_prefiltered.size(); j++)
         {
             int already_exists = 0;
+            sqlite3_stmt* stmt;
             std::string name = non_prefiltered[j].title + "_onto_" + sym_strucs[i].title;
             std::cout << name << std::endl;
             sqlite3_prepare(db, ("SELECT EXISTS(SELECT 1 FROM second_pass WHERE name='" + name + "');").c_str(), -1,
@@ -233,12 +240,13 @@ int main(int argc, char* argv[])
             if (!already_exists)
             {
                 const auto info_pair = gus_entry(sym_strucs[i], non_prefiltered[j], gus_launch.count("sym-break-only"));
-                int rc = sqlite3_exec(db,
-                                      ("INSERT into second_pass (name, host, struc, score, grp_sbgrp) VALUES ('" + name +
-                                       "'," + "'" + sym_strucs[i].title + "'," + "'" + non_prefiltered[j].title + "'," +
-                                       std::to_string(info_pair.first) + "," + std::to_string(info_pair.second) + ");")
-                                          .c_str(),
-                                      callback, 0, &zErrMsg);
+                int rc =
+                    sqlite3_exec(db,
+                                 ("INSERT into second_pass (name, host, struc, score, grp_sbgrp) VALUES ('" + name +
+                                  "'," + "'" + sym_strucs[i].title + "'," + "'" + non_prefiltered[j].title + "'," +
+                                  std::to_string(info_pair.first) + "," + std::to_string(info_pair.second) + ");")
+                                     .c_str(),
+                                 callback, 0, &zErrMsg);
                 if (rc != SQLITE_OK)
                 {
                     std::cout << "SQL error: " << zErrMsg << std::endl;
@@ -255,7 +263,7 @@ int main(int argc, char* argv[])
             }
         }
     }
-     sqlite3_close(db);
+    sqlite3_close(db);
     // if (gus_launch.vm().count("output"))
     //{
     //    auto out_path = gus_launch.fetch<fs::path>("output");
