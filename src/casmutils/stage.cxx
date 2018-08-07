@@ -72,47 +72,73 @@ void _rigid_rotate(Rewrap::Structure* struc, Eigen::Matrix3d& rot_mat)
     return;
 }
 
+Rewrap::Structure add_va(const Rewrap::Structure &struc){
+	auto cpy = struc;
+    for (auto& site : cpy.basis)
+    {
+		std::vector<CASM::Molecule> dof_list;
+		for (auto occ : site.allowed_occupants())
+		{
+			dof_list.emplace_back(CASM::Molecule::make_atom(occ));
+		}
+		dof_list.emplace_back(CASM::Molecule::make_vacancy());
+        site.set_allowed_species(dof_list);
+    }
+	return cpy;
 
+}
 
+double va_concentration(const Rewrap::Structure &struc){
+	double conc=0.0;
+	for (auto &site : struc.basis){
+		if (site.is_vacant()){
+			conc+=1.0/struc.basis.size();
+		}
+	
+	}
+	return conc;
+}
 } // namespace
-std::pair<Rewrap::Structure, Eigen::Matrix3i> _minimally_distorted_structure(const Rewrap::Structure& ref_struc,
+std::tuple<Rewrap::Structure, Eigen::Matrix3i, std::vector<int>> _minimally_distorted_structure(const Rewrap::Structure& ref_struc,
                                                                              const Rewrap::Structure& deformed_struc)
 {
-    CASM::PrimClex* pclex = new CASM::PrimClex(ref_struc, CASM::null_log());
+    CASM::PrimClex* pclex = new CASM::PrimClex(add_va(ref_struc), CASM::null_log());
     CASM::ConfigMapper mapper(*pclex, 0.5);
+	mapper.restricted();
+	mapper.set_max_va_frac(0.5);
     CASM::ConfigDoF mapped_dof;
     CASM::Lattice mapped_lat;
     mapper.struc_to_configdof(deformed_struc, mapped_dof, mapped_lat);
     CASM::Supercell scel(pclex, mapped_lat);
-    return std::make_pair(_apply_configdof(scel, _sym_break_projection(scel, mapped_dof)), scel.transf_mat());
+    return std::make_tuple(_apply_configdof(scel, _sym_break_projection(scel, mapped_dof)), scel.transf_mat(),mapped_dof.occupation());
 }
 
 Rewrap::Structure minimally_distorted_structure(const Rewrap::Structure& ref_struc,
                                                 const Rewrap::Structure& deformed_struc)
 {
-    return _minimally_distorted_structure(ref_struc, deformed_struc).first;
+    return std::get<0>(_minimally_distorted_structure(ref_struc, deformed_struc));
 }
 
-std::pair<Rewrap::Structure, Eigen::Matrix3i> _distorted_structure(const Rewrap::Structure& ref_struc,
+std::tuple<Rewrap::Structure, Eigen::Matrix3i,std::vector<int>> _distorted_structure(const Rewrap::Structure& ref_struc,
                                                                    const Rewrap::Structure& deformed_struc)
 {
-    CASM::PrimClex* pclex = new CASM::PrimClex(ref_struc, CASM::null_log());
+    CASM::PrimClex* pclex = new CASM::PrimClex(add_va(ref_struc), CASM::null_log());
     CASM::ConfigMapper mapper(*pclex, 0.5);
+	mapper.restricted();
+	mapper.set_max_va_frac(0.5);
     CASM::ConfigDoF mapped_configdof;
     CASM::Lattice mapped_lat;
     mapper.struc_to_configdof(deformed_struc, mapped_configdof, mapped_lat);
     CASM::Supercell scel(pclex, mapped_lat);
-    return std::make_pair(_apply_configdof(scel, mapped_configdof), scel.transf_mat());
+    return std::make_tuple(_apply_configdof(scel, mapped_configdof), scel.transf_mat(),mapped_configdof.occupation());
 }
 Rewrap::Structure distorted_structure(const Rewrap::Structure& ref_struc, const Rewrap::Structure& deformed_struc)
 {
-    return _distorted_structure(ref_struc, deformed_struc).first;
+    return std::get<0>(_distorted_structure(ref_struc, deformed_struc));
 }
 std::vector<Rewrap::Structure> interpolate(const Rewrap::Structure& init_struc, const Rewrap::Structure& final_struc,
                                            int n_images)
 {
-    std::cout << "initial lattice " << init_struc.lattice().lat_column_mat() << std::endl;
-    std::cout << "final lattice " << final_struc.lattice().lat_column_mat() << std::endl;
     std::vector<Rewrap::Structure> images;
     CASM::PrimClex* pclex = new CASM::PrimClex(init_struc, CASM::null_log());
     CASM::ConfigMapper mapper(*pclex, 0.5);
@@ -122,27 +148,22 @@ std::vector<Rewrap::Structure> interpolate(const Rewrap::Structure& init_struc, 
     CASM::Supercell scel(pclex, mapped_lat);
     CASM::Configuration init_config(scel);
     init_config.init_occupation();
+	init_config.set_occupation(mapped_configdof.occupation());
     init_config.init_deformation();
     init_config.init_displacement();
     CASM::Configuration final_config(scel, CASM::jsonParser(), mapped_configdof);
-    // std::cout << "init_config lattice" << init_config.supercell().lattice().lat_column_mat() << std::endl;
-    // std::cout << "final_config lattice" << final_config.supercell().lattice().lat_column_mat() << std::endl;
-    // std::cout << "final_config deformation" << final_config.deformation() << std::endl;
+	if (!final_config.has_deformation()){
+		final_config.init_deformation();
+	}
+	if (!final_config.has_displacement()){
+		final_config.init_displacement();
+	}
     auto new_F = CASM::StrainConverter::right_stretch_tensor(final_config.deformation());
     final_config.set_deformation(new_F);
-    // std::cout << "final_config deformation new" << new_F << std::endl;
-    // std::cout << "i_occ,i_def,i_disp,f_occ,f_def,f_disp" << init_config.has_occupation() <<
-    // init_config.has_deformation() << init_config.has_displacement() << final_config.has_occupation() <<
-    // final_config.has_deformation() << final_config.has_displacement() << std::endl; std::cout << "interpolator
-    // attempt to initialize" << std::endl;
     CASM::ConfigEnumInterpolation interpolator(init_config, final_config, n_images);
-    // std::cout << "interpolator initialized" << std::endl;
-    // int count = 0;
     for (auto& image : interpolator)
     {
-        //    std::cout << "image no " << count << std::endl;
         images.push_back(make_deformed_struc(image));
-        // count++;
     }
     return images;
 }
@@ -151,26 +172,32 @@ std::vector<Rewrap::Structure> deformation_pathway(const Rewrap::Structure& init
                                                    const Rewrap::Structure& final_struc, int n_images, bool minimal)
 {
     Rewrap::Structure mapped_struc = final_struc;
+
     Eigen::Matrix3i transfmat = Eigen::Matrix3i::Identity();
+	std::vector<int> occ_vec;
     if (minimal)
     {
-        auto pair = _minimally_distorted_structure(init_struc, final_struc);
-        mapped_struc = pair.first;
-        transfmat = pair.second;
+        auto tuple = _minimally_distorted_structure(init_struc, final_struc);
+        mapped_struc = std::get<0>(tuple);
+        transfmat = std::get<1>(tuple);
+		occ_vec= std::get<2>(tuple);
     }
     else
     {
-        auto pair = _distorted_structure(init_struc, final_struc);
-        mapped_struc = pair.first;
-        transfmat = pair.second;
+        auto tuple = _distorted_structure(init_struc, final_struc);
+        mapped_struc = std::get<0>(tuple);
+        transfmat = std::get<1>(tuple);
+		occ_vec= std::get<2>(tuple);
     }
-    CASM::PrimClex* pclex = new CASM::PrimClex(init_struc, CASM::null_log());
+    CASM::PrimClex* pclex = new CASM::PrimClex(add_va(init_struc), CASM::null_log());
     CASM::Supercell scel(pclex, transfmat);
     CASM::Configuration config(scel);
     config.init_occupation();
+	config.set_occupation(occ_vec);
     config.init_deformation();
     config.init_displacement();
     Rewrap::Structure first_image = make_deformed_struc(config);
+	std::cout << "Va concentration is " << va_concentration(first_image) << std::endl;
     return interpolate(first_image, mapped_struc, n_images);
 }
 
@@ -181,7 +208,7 @@ std::pair<double, bool> gus_entry(const Rewrap::Structure& host_struc, const Rew
     bool grp_sbgrp = false;
     CASM::PrimClex pclex(host_struc, CASM::null_log());
     CASM::ConfigMapper mapper(pclex, 0.5);
-	mapper.set_max_va_frac(0.75);
+	mapper.set_max_va_frac(0.5);
     mapper.restricted();
     //double divisor = 1.0 * test_struc.basis.size() / host_struc.basis.size();
     CASM::ConfigDoF mapped_dof;
