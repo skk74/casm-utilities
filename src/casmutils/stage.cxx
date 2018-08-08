@@ -93,4 +93,10 @@ Eigen::Vector3d find_layer_direction(const Rewrap::Structure& struc, int num_sam
     ret_val = struc.lattice().inv_lat_column_mat() * struc.lattice().reciprocal().lat_column_mat() * ret_val;
     return ret_val;
 }
+
+Rewrap::Structure reoriented_struc(const Rewrap::Structure &struc,Eigen::Vector3i millers){
+	CASM::Lattice transf_lat = struc.lattice().lattice_in_plane(millers);
+	return struc.create_superstruc(transf_lat);
+}
+
 } // namespace Viewpoint
