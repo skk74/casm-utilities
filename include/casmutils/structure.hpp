@@ -38,6 +38,8 @@ private:
 
 namespace Simplicity
 {
+void write_cif(const Rewrap::Structure& printable, const Rewrap::fs::path& filename);
+void print_cif(const Rewrap::Structure& printable, std::ostream& outstream);
 void write_poscar(const Rewrap::Structure& printable, const Rewrap::fs::path& filename);
 void print_poscar(const Rewrap::Structure& printable, std::ostream& outstream);
 Rewrap::Structure make_niggli(const Rewrap::Structure& non_niggli);

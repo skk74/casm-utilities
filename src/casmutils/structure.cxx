@@ -46,6 +46,19 @@ void make_niggli(Rewrap::Structure* non_niggli)
     return;
 }
 
+void print_cif(const Rewrap::Structure& printable, std::ostream& outstream)
+{
+    printable.print_cif(outstream);
+    return;
+}
+
+void write_cif(const Rewrap::Structure& printable, const Rewrap::fs::path& filename)
+{
+    std::ofstream file_out(filename.string());
+    print_cif(printable, file_out);
+    file_out.close();
+    return;
+}
 void print_poscar(const Rewrap::Structure& printable, std::ostream& outstream)
 {
     CASM::VaspIO::PrintPOSCAR p(printable);

@@ -22,6 +22,10 @@ void deformation_pathway_initializer(po::options_description& deformation_pathwa
                                            "number of structures you want along the path");
     deformation_pathway_desc.add_options()(
         "minimal,m", "Give this flag if you only care about the symmetry breaking portion of the deformation path");
+    deformation_pathway_desc.add_options()(
+        "allow-vacancies,v", "Give this flag if you want vacancies to be considered during the map");
+    deformation_pathway_desc.add_options()("weight,w", po::value<double>()->required(),
+                                           "lattice-basis tradeoff that determines the shortest path for the best mapping");
     return;
 }
 } // namespace Utilities
@@ -50,6 +54,7 @@ int main(int argc, char* argv[])
     }
 
     auto structure_paths = deformation_pathway_launch.fetch<std::vector<fs::path>>("structures");
+    auto lattice_weight = deformation_pathway_launch.fetch<double>("weight");
 
     if (structure_paths.size() != 2)
     {
@@ -61,7 +66,7 @@ int main(int argc, char* argv[])
     auto init_struc = Rewrap::Structure(structure_paths[0]);
     auto final_struc = Rewrap::Structure(structure_paths[1]);
     auto strucs = deformation_pathway(init_struc, final_struc, deformation_pathway_launch.fetch<int>("number-images"),
-                                      deformation_pathway_launch.count("minimal"));
+                                      deformation_pathway_launch.count("minimal"),deformation_pathway_launch.count("allow-vacancies"),lattice_weight);
     if (deformation_pathway_launch.vm().count("output"))
     {
 	auto out_path = deformation_pathway_launch.fetch<fs::path>("output");

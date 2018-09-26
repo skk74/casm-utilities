@@ -100,10 +100,16 @@ double va_concentration(const Rewrap::Structure &struc){
 }
 } // namespace
 std::tuple<Rewrap::Structure, Eigen::Matrix3i, std::vector<int>> _minimally_distorted_structure(const Rewrap::Structure& ref_struc,
-                                                                             const Rewrap::Structure& deformed_struc)
+                                                                             const Rewrap::Structure& deformed_struc, bool allow_va,double lattice_weight)
 {
-    CASM::PrimClex* pclex = new CASM::PrimClex(add_va(ref_struc), CASM::null_log());
-    CASM::ConfigMapper mapper(*pclex, 0.5);
+	CASM::PrimClex* pclex;
+	if (allow_va){
+     pclex = new CASM::PrimClex(add_va(ref_struc), CASM::null_log());
+	}
+	else {
+     pclex = new CASM::PrimClex(ref_struc, CASM::null_log());
+	}
+	CASM::ConfigMapper mapper(*pclex, lattice_weight);
 	mapper.restricted();
 	mapper.set_max_va_frac(0.5);
     CASM::ConfigDoF mapped_dof;
@@ -114,16 +120,22 @@ std::tuple<Rewrap::Structure, Eigen::Matrix3i, std::vector<int>> _minimally_dist
 }
 
 Rewrap::Structure minimally_distorted_structure(const Rewrap::Structure& ref_struc,
-                                                const Rewrap::Structure& deformed_struc)
+                                                const Rewrap::Structure& deformed_struc, bool allow_va,double lattice_weight)
 {
-    return std::get<0>(_minimally_distorted_structure(ref_struc, deformed_struc));
+    return std::get<0>(_minimally_distorted_structure(ref_struc, deformed_struc,allow_va,lattice_weight));
 }
 
 std::tuple<Rewrap::Structure, Eigen::Matrix3i,std::vector<int>> _distorted_structure(const Rewrap::Structure& ref_struc,
-                                                                   const Rewrap::Structure& deformed_struc)
+                                                                   const Rewrap::Structure& deformed_struc, bool allow_va,double lattice_weight)
 {
-    CASM::PrimClex* pclex = new CASM::PrimClex(add_va(ref_struc), CASM::null_log());
-    CASM::ConfigMapper mapper(*pclex, 0.5);
+    CASM::PrimClex* pclex;
+	if (allow_va){
+     pclex = new CASM::PrimClex(add_va(ref_struc), CASM::null_log());
+	}
+	else {
+     pclex = new CASM::PrimClex(ref_struc, CASM::null_log());
+	}
+    CASM::ConfigMapper mapper(*pclex, lattice_weight);
 	mapper.restricted();
 	mapper.set_max_va_frac(0.5);
     CASM::ConfigDoF mapped_configdof;
@@ -132,16 +144,16 @@ std::tuple<Rewrap::Structure, Eigen::Matrix3i,std::vector<int>> _distorted_struc
     CASM::Supercell scel(pclex, mapped_lat);
     return std::make_tuple(_apply_configdof(scel, mapped_configdof), scel.transf_mat(),mapped_configdof.occupation());
 }
-Rewrap::Structure distorted_structure(const Rewrap::Structure& ref_struc, const Rewrap::Structure& deformed_struc)
+Rewrap::Structure distorted_structure(const Rewrap::Structure& ref_struc, const Rewrap::Structure& deformed_struc, bool allow_va, double lattice_weight)
 {
-    return std::get<0>(_distorted_structure(ref_struc, deformed_struc));
+    return std::get<0>(_distorted_structure(ref_struc, deformed_struc,allow_va, lattice_weight));
 }
 std::vector<Rewrap::Structure> interpolate(const Rewrap::Structure& init_struc, const Rewrap::Structure& final_struc,
-                                           int n_images)
+                                           int n_images,double lattice_weight)
 {
     std::vector<Rewrap::Structure> images;
     CASM::PrimClex* pclex = new CASM::PrimClex(init_struc, CASM::null_log());
-    CASM::ConfigMapper mapper(*pclex, 0.5);
+    CASM::ConfigMapper mapper(*pclex, lattice_weight);
     CASM::ConfigDoF mapped_configdof;
     CASM::Lattice mapped_lat;
     mapper.struc_to_configdof(final_struc, mapped_configdof, mapped_lat);
@@ -169,7 +181,7 @@ std::vector<Rewrap::Structure> interpolate(const Rewrap::Structure& init_struc, 
 }
 
 std::vector<Rewrap::Structure> deformation_pathway(const Rewrap::Structure& init_struc,
-                                                   const Rewrap::Structure& final_struc, int n_images, bool minimal)
+                                                   const Rewrap::Structure& final_struc, int n_images, bool minimal, bool allow_va, double lattice_weight)
 {
     Rewrap::Structure mapped_struc = final_struc;
 
@@ -177,20 +189,26 @@ std::vector<Rewrap::Structure> deformation_pathway(const Rewrap::Structure& init
 	std::vector<int> occ_vec;
     if (minimal)
     {
-        auto tuple = _minimally_distorted_structure(init_struc, final_struc);
+        auto tuple = _minimally_distorted_structure(init_struc, final_struc,allow_va,lattice_weight);
         mapped_struc = std::get<0>(tuple);
         transfmat = std::get<1>(tuple);
 		occ_vec= std::get<2>(tuple);
     }
     else
     {
-        auto tuple = _distorted_structure(init_struc, final_struc);
+        auto tuple = _distorted_structure(init_struc, final_struc,allow_va,lattice_weight);
         mapped_struc = std::get<0>(tuple);
         transfmat = std::get<1>(tuple);
 		occ_vec= std::get<2>(tuple);
     }
-    CASM::PrimClex* pclex = new CASM::PrimClex(add_va(init_struc), CASM::null_log());
-    CASM::Supercell scel(pclex, transfmat);
+	CASM::PrimClex* pclex; 
+	if (allow_va){
+    pclex =new CASM::PrimClex(add_va(init_struc), CASM::null_log());
+	}
+	else{ 
+    pclex = new CASM::PrimClex(init_struc, CASM::null_log());
+	}
+	CASM::Supercell scel(pclex, transfmat);
     CASM::Configuration config(scel);
     config.init_occupation();
 	config.set_occupation(occ_vec);
@@ -198,16 +216,16 @@ std::vector<Rewrap::Structure> deformation_pathway(const Rewrap::Structure& init
     config.init_displacement();
     Rewrap::Structure first_image = make_deformed_struc(config);
 	std::cout << "Va concentration is " << va_concentration(first_image) << std::endl;
-    return interpolate(first_image, mapped_struc, n_images);
+    return interpolate(first_image, mapped_struc, n_images,lattice_weight);
 }
 
 std::pair<double, bool> gus_entry(const Rewrap::Structure& host_struc, const Rewrap::Structure& test_struc,
-                                  bool sym_break_only)
+                                  bool sym_break_only,double lattice_weight)
 {
     double score = 1e9;
     bool grp_sbgrp = false;
     CASM::PrimClex pclex(host_struc, CASM::null_log());
-    CASM::ConfigMapper mapper(pclex, 0.5);
+    CASM::ConfigMapper mapper(pclex, lattice_weight);
 	mapper.set_max_va_frac(0.5);
     mapper.restricted();
     //double divisor = 1.0 * test_struc.basis.size() / host_struc.basis.size();

@@ -22,6 +22,9 @@ void gus_initializer(po::options_description& gus_desc)
                            "POS.vasp like files that represent the structures that you wish to categorize");
     gus_desc.add_options()("sym-break-only",
                            "if this flag is specified the symmetry preserving part of mapping score is removed");
+    gus_desc.add_options()("weight,w", po::value<double>()->required(),
+                           "dictates the lattice-basis tradeoff that determines the best mapping. 0 is only basis score, 1 is only lattice score");
+	
     return;
 }
 } // namespace Utilities
@@ -61,6 +64,7 @@ int main(int argc, char* argv[])
 
     auto library_path = gus_launch.fetch<fs::path>("library");
     auto struc_path = gus_launch.fetch<fs::path>("structure-folder");
+    auto lattice_weight = gus_launch.fetch<double>("weight");
     std::cout << "paths loaded" << std::endl;
     auto lib_list = read_and_rename_json(library_path);
     std::cout << "lib list ready" << std::endl;
@@ -70,7 +74,7 @@ int main(int argc, char* argv[])
     sqlite3_stmt* stmt;
     char* zErrMsg = 0;
     std::cout << "am i thread safe? " << sqlite3_threadsafe() << std::endl;
-    sqlite3_open("prefilter.db", &db);
+    sqlite3_open(("prefilter_"+ std::to_string(lattice_weight)+".db").c_str(), &db);
     sqlite3_exec(
         db, "create table if not exists prefilter (name text, host text, struc text, score real, grp_sbgrp integer); ",
         callback, 0, &zErrMsg);
@@ -92,7 +96,7 @@ int main(int argc, char* argv[])
             sqlite3_finalize(stmt);
             if (!already_exists)
             {
-                const auto info_pair = gus_entry(lib_list[i], struc_list[j], gus_launch.count("sym-break-only"));
+                const auto info_pair = gus_entry(lib_list[i], struc_list[j], gus_launch.count("sym-break-only"), lattice_weight);
                 int rc = sqlite3_exec(db,
                                       ("INSERT into prefilter (name, host, struc, score, grp_sbgrp) VALUES ('" + name +
                                        "'," + "'" + lib_list[i].title + "'," + "'" + struc_list[j].title + "'," +
@@ -162,7 +166,7 @@ int main(int argc, char* argv[])
             sqlite3_finalize(stmt);
             if (!already_exists)
             {
-                const auto info_pair = gus_entry(prim_list[i], non_prefiltered[j], gus_launch.count("sym-break-only"));
+                const auto info_pair = gus_entry(prim_list[i], non_prefiltered[j], gus_launch.count("sym-break-only"),lattice_weight);
                 int rc = sqlite3_exec(db,
                                       ("INSERT into first_pass (name, host, struc, score, grp_sbgrp) VALUES ('" + name +
                                        "'," + "'" + prim_list[i].title + "'," + "'" + non_prefiltered[j].title + "'," +
@@ -239,7 +243,7 @@ int main(int argc, char* argv[])
             sqlite3_finalize(stmt);
             if (!already_exists)
             {
-                const auto info_pair = gus_entry(sym_strucs[i], non_prefiltered[j], gus_launch.count("sym-break-only"));
+                const auto info_pair = gus_entry(sym_strucs[i], non_prefiltered[j], gus_launch.count("sym-break-only"),lattice_weight);
                 int rc =
                     sqlite3_exec(db,
                                  ("INSERT into second_pass (name, host, struc, score, grp_sbgrp) VALUES ('" + name +
