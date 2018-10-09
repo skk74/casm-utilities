@@ -33,8 +33,8 @@ std::vector<Rewrap::Structure> deformation_pathway(const Rewrap::Structure& init
 
 /// Creates the matrix entry information for a single entry in a GUS-style matrix from host_struc and test_struc
 /// the argument sym_break_only tells whether to remove the symmetry preserving part of the mapping score or not
-/// Returns a pair of mapping score and bool representing group-subgroup
-std::pair<double, bool> gus_entry(const Rewrap::Structure& host_struc, const Rewrap::Structure& test_struc,
+/// Returns a tuple of mapping score, lattice score,  basis score and bool representing group-subgroup
+std::tuple<double, double, double, bool> gus_entry(const Rewrap::Structure& host_struc, const Rewrap::Structure& test_struc,
                                   bool sym_break_only, double lattice_weight);
 
 ///This function searches all files in struc_folder and attempts to read them into a structure from a prim.json format

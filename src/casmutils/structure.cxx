@@ -48,14 +48,16 @@ void make_niggli(Rewrap::Structure* non_niggli)
 
 void print_cif(const Rewrap::Structure& printable, std::ostream& outstream)
 {
-    printable.print_cif(outstream);
+	throw std::runtime_error("not implemented in this version");
+    //printable.print_cif(outstream);
     return;
 }
 
 void write_cif(const Rewrap::Structure& printable, const Rewrap::fs::path& filename)
 {
+	throw std::runtime_error("not implemented in this version");
     std::ofstream file_out(filename.string());
-    print_cif(printable, file_out);
+    //print_cif(printable, file_out);
     file_out.close();
     return;
 }

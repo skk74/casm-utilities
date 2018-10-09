@@ -219,7 +219,7 @@ std::vector<Rewrap::Structure> deformation_pathway(const Rewrap::Structure& init
     return interpolate(first_image, mapped_struc, n_images,lattice_weight);
 }
 
-std::pair<double, bool> gus_entry(const Rewrap::Structure& host_struc, const Rewrap::Structure& test_struc,
+std::tuple<double,double,double,bool> gus_entry(const Rewrap::Structure& host_struc, const Rewrap::Structure& test_struc,
                                   bool sym_break_only,double lattice_weight)
 {
     double score = 1e9;
@@ -231,6 +231,8 @@ std::pair<double, bool> gus_entry(const Rewrap::Structure& host_struc, const Rew
     //double divisor = 1.0 * test_struc.basis.size() / host_struc.basis.size();
     CASM::ConfigDoF mapped_dof;
     CASM::Lattice mapped_lat;
+	double sc = 1e9;
+	double bc = 1e9;
     if (/*floor(divisor) == divisor &&*/ mapper.struc_to_configdof(test_struc, mapped_dof, mapped_lat))
     {
         CASM::Supercell scel(&pclex, mapped_lat);
@@ -239,8 +241,8 @@ std::pair<double, bool> gus_entry(const Rewrap::Structure& host_struc, const Rew
             mapped_dof = _sym_break_projection(scel, mapped_dof);
         }
         CASM::Configuration config(scel, CASM::jsonParser(), mapped_dof);
-        double sc = CASM::ConfigMapping::strain_cost(test_struc.lattice(), mapped_dof, test_struc.basis.size());
-        double bc = CASM::ConfigMapping::basis_cost(mapped_dof, test_struc.basis.size());
+        sc = CASM::ConfigMapping::strain_cost(test_struc.lattice(), mapped_dof, test_struc.basis.size());
+        bc = CASM::ConfigMapping::basis_cost(mapped_dof, test_struc.basis.size());
         score = (mapper.lattice_weight() * sc + (1.0 - mapper.lattice_weight()) * bc);
         double ratio =
             1.0 * host_struc.factor_group().size() / config.multiplicity() / test_struc.factor_group().size();
@@ -268,7 +270,7 @@ std::pair<double, bool> gus_entry(const Rewrap::Structure& host_struc, const Rew
 		}	
         //grp_sbgrp = (floor(ratio) == ratio && std::find(fl_sizes.begin(),fl_sizes.end(),host_struc.factor_group().size()/config.multiplicity())!=fl_sizes.end());
     }
-    return std::make_pair(score, grp_sbgrp);
+    return std::make_tuple(score, sc, bc, grp_sbgrp);
 }
 
 std::vector<Rewrap::Structure> read_and_rename_json(const Rewrap::fs::path& struc_folder)

@@ -214,9 +214,6 @@ Rewrap::Structure vacuum_pack(const Rewrap::Structure& big_struc, std::array<boo
         }
     }
 
-    // Shift the atoms so that the vacuum packed atoms are located at the origin
-    Eigen::Vector3d shift(-limits[0].second, -limits[1].second, -limits[2].second);
-    shift_coords_by(&cpy_big, shift);
 
     // Reduce the lattice vectors so that the lattice only just encloses the atoms
     Eigen::Matrix3d lat_mat = cpy_big.lattice().lat_column_mat();
@@ -224,6 +221,10 @@ Rewrap::Structure vacuum_pack(const Rewrap::Structure& big_struc, std::array<boo
     {
         if (dirs[i])
         {
+			// Shift the atoms so that the vacuum packed atoms are located at the origin
+			Eigen::Vector3d shift(0,0,0);
+			shift(i)=-limits[i].second;
+			shift_coords_by(&cpy_big, shift);
             lat_mat.col(i) = lat_mat.col(i) * (limits[i].first - limits[i].second) +
                              padding * lat_mat.col(i) / lat_mat.col(i).norm();
         }
