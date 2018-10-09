@@ -1,0 +1,11 @@
+bin_PROGRAMS += _casmutils-find-layer
+
+_casmutils_find_layer_SOURCES=\
+						  utilities/find_layer/find_layer.cpp
+
+
+_casmutils_find_layer_LDADD=\
+						libcasmutils.la\
+						$(BOOST_SYSTEM_LIB)\
+						$(BOOST_FILESYSTEM_LIB)\
+						$(BOOST_PROGRAM_OPTIONS_LIB)
