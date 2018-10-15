@@ -1,0 +1,11 @@
+bin_PROGRAMS += _casmutils-equivalent-layers
+
+_casmutils_equivalent_layers_SOURCES=\
+						  utilities/equivalent_layers/equivalent_layers.cpp
+
+
+_casmutils_equivalent_layers_LDADD=\
+						libcasmutils.la\
+						$(BOOST_SYSTEM_LIB)\
+						$(BOOST_FILESYSTEM_LIB)\
+						$(BOOST_PROGRAM_OPTIONS_LIB)
