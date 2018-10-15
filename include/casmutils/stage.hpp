@@ -2,6 +2,7 @@
 #define STAGE_HH
 #include "casmutils/definitions.hpp"
 #include "casmutils/structure.hpp"
+#include "casmutils/frankenstein.hpp"
 #include <casm/CASM_global_definitions.hh>
 #include <casm/crystallography/Structure.hh>
 #include <iostream>
@@ -49,6 +50,11 @@ Rewrap::Structure reassign_all_occs(const Rewrap::Structure &original, const std
 
 ///This function returns a symmetrized version of the given structure with a relaxed tolerance
 Rewrap::Structure symmetrize(const Rewrap::Structure &struc, double tol);
+
+///This function takes a 2D hexagonal layer and returns all the equivalents (may have some repeats)
+///due to operation of the lattice point group + basis shifts [1/3, 2/3, 0] and [2/3, 1/3, 0]
+std::vector<Rewrap::Structure> enumerate_layer_equivalents(const Rewrap::Structure &original);
+
 
 namespace Viewpoint
 {

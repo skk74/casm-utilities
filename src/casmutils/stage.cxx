@@ -98,7 +98,31 @@ double va_concentration(const Rewrap::Structure &struc){
 	}
 	return conc;
 }
+/// This function alters the coordinates of the given struc to have fractional
+/// coordinates between 0 and 1 only
+void bring_coords_within(Rewrap::Structure* struc)
+{
+    for (auto& site : struc->basis)
+    {
+        site.within();
+    }
+    return;
+}
+
+bool is_planar(const Eigen::Matrix3d &cart_op){
+	//std::cout << cart_op << std::endl;
+	//std::cout << cart_op(2,0)==0 << cart_op(2,1)==0 << cart_op(2,2)==1 << cart_op(1,2) << cart_op(0,2))==0 << std::endl; 
+	return ( cart_op(2,0)==0 && cart_op(2,1)==0 && cart_op(2,2)==1 && cart_op(1,2) ==0 && cart_op(0,2)==0);
+	
+}
+
+bool struc_equal(const Rewrap::Structure &lhs, const Rewrap::Structure &rhs){
+
+}
+
 } // namespace
+
+
 std::tuple<Rewrap::Structure, Eigen::Matrix3i, std::vector<int>> _minimally_distorted_structure(const Rewrap::Structure& ref_struc,
                                                                              const Rewrap::Structure& deformed_struc, bool allow_va,double lattice_weight)
 {
@@ -254,11 +278,11 @@ std::tuple<double,double,double,bool> gus_entry(const Rewrap::Structure& host_st
 		if (subgroup_index < tree_pair.first.size()){
 			grp_sbgrp= tree_pair.second[subgroup_index].size()==2;
 		}
-		std::cout << "DEBUGGING: host_struc.title " << host_struc.title  << std::endl;
-		std::cout << "DEBUGGING: test_struc.title " << test_struc.title  << std::endl;
-		std::cout << "DEBUGGING: host_struc.factor_group().name " << host_struc.factor_group().get_name()  << std::endl;
-		std::cout << "DEBUGGING: test_struc.factor_group().name " << test_struc.factor_group().get_name()  << std::endl;
-		std::cout << "DEBUGGING: host_struc.factor_group().size() / config.multiplicity()" << host_struc.factor_group().size() / config.multiplicity() << std::endl;
+		//std::cout << "DEBUGGING: host_struc.title " << host_struc.title  << std::endl;
+		//std::cout << "DEBUGGING: test_struc.title " << test_struc.title  << std::endl;
+		//std::cout << "DEBUGGING: host_struc.factor_group().name " << host_struc.factor_group().get_name()  << std::endl;
+		//std::cout << "DEBUGGING: test_struc.factor_group().name " << test_struc.factor_group().get_name()  << std::endl;
+		//std::cout << "DEBUGGING: host_struc.factor_group().size() / config.multiplicity()" << host_struc.factor_group().size() / config.multiplicity() << std::endl;
 		std::set<int> fl_sizes;
 		for ( int i=0;i< tree_pair.second.size();++i){
 			if (tree_pair.second[i].size()==2){
@@ -356,7 +380,33 @@ Rewrap::Structure symmetrize(const Rewrap::Structure& struc, double tol)
     }
 	return sym_struc;
 }
-=======
+
+///This function takes a 2D hexagonal layer and returns all the equivalents (may have some repeats)
+///due to operation of the lattice point group + basis shifts [1/3, 2/3, 0] and [2/3, 1/3, 0]
+std::vector<Rewrap::Structure> enumerate_layer_equivalents(const Rewrap::Structure &original){
+	std::vector<Rewrap::Structure> equivs;
+	CASM::SymGroup g;
+	original.lattice().generate_point_group(g);
+	for( auto &op : g){
+		if (!is_planar(op.matrix())){
+			continue;
+		}
+		auto cpy = original;
+		for (auto &site : cpy.basis){
+			site = CASM::copy_apply(op,site);
+		}
+		bring_coords_within(&cpy);	
+		equivs.push_back(cpy);
+		Frankenstein::shift_coords_by(&cpy,Eigen::Vector3d(1.0/3.0,2.0/3.0,0));
+		bring_coords_within(&cpy);	
+		equivs.push_back(cpy);
+		Frankenstein::shift_coords_by(&cpy,Eigen::Vector3d(1.0/3.0,2.0/3.0,0));
+		bring_coords_within(&cpy);	
+		equivs.push_back(cpy);
+	}
+	return equivs;
+}
+
 #include <fstream>
 #include <set>
 namespace Viewpoint
@@ -455,4 +505,3 @@ Rewrap::Structure reoriented_struc(const Rewrap::Structure &struc,Eigen::Vector3
 }
 
 } // namespace Viewpoint
->>>>>>> layer_finder
