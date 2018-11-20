@@ -263,7 +263,7 @@ std::vector<Rewrap::Structure> deformation_pathway(const Rewrap::Structure& init
     return interpolate(first_image, mapped_struc, n_images,lattice_weight);
 }
 
-std::tuple<double,double,double,bool> gus_entry(const Rewrap::Structure& host_struc, const Rewrap::Structure& test_struc,
+std::tuple<double,double,double,std::string,std::string,bool> gus_entry(const Rewrap::Structure& host_struc, const Rewrap::Structure& test_struc,
                                   bool sym_break_only,double lattice_weight)
 {
     double score = 1e9;
@@ -308,7 +308,7 @@ std::tuple<double,double,double,bool> gus_entry(const Rewrap::Structure& host_st
 			std::cout << "first level subgroup size: " << size << std::endl;
 		}	
     }
-    return std::make_tuple(score, sc, bc, host_stru.factor_group().get_name(), test_struc.factor_group().get_name(), grp_sbgrp);
+    return std::make_tuple(score, sc, bc, host_struc.factor_group().get_name(), test_struc.factor_group().get_name(), grp_sbgrp);
 }
 
 std::vector<Rewrap::Structure> read_and_rename_json(const Rewrap::fs::path& struc_folder)

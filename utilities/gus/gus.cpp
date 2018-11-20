@@ -76,7 +76,7 @@ int main(int argc, char* argv[])
     std::cout << "am i thread safe? " << sqlite3_threadsafe() << std::endl;
     sqlite3_open(("prefilter_"+ std::to_string(lattice_weight)+".db").c_str(), &db);
     sqlite3_exec(
-        db, "create table if not exists prefilter (name text, host text, struc text, score real, lattice_score real, basis_score real, grp_sbgrp integer); ",
+        db, "create table if not exists prefilter (name text, host text, struc text, score real, lattice_score real, basis_score real, grp_sbgrp integer, host_pg text, struc_pg text); ",
         callback, 0, &zErrMsg);
 #pragma omp parallel for
     for (int i = 0; i < lib_list.size(); i++)
@@ -98,10 +98,10 @@ int main(int argc, char* argv[])
             {
                 const auto info_tuple = gus_entry(lib_list[i], struc_list[j], gus_launch.count("sym-break-only"), lattice_weight);
                 int rc = sqlite3_exec(db,
-                                      ("INSERT into prefilter (name, host, struc, score,lattice_score, basis_score, grp_sbgrp) VALUES ('" + name +
+                                      ("INSERT into prefilter (name, host, struc, score,lattice_score, basis_score, grp_sbgrp, host_pg, struc_pg) VALUES ('" + name +
                                        "'," + "'" + lib_list[i].title + "'," + "'" + struc_list[j].title + "'," +
                                        std::to_string(std::get<0>(info_tuple)) + "," + std::to_string(std::get<1>(info_tuple)) + 
-									   "," + std::to_string(std::get<2>(info_tuple)) + "," + std::to_string(std::get<3>(info_tuple)) + ");")
+									   "," + std::to_string(std::get<2>(info_tuple)) + "," + std::to_string(std::get<5>(info_tuple)) +"," + std::get<3>(info_tuple) +"," + std::get<4>(info_tuple) + ");")
                                           .c_str(),
                                       callback, 0, &zErrMsg);
                 if (rc != SQLITE_OK)
@@ -147,7 +147,7 @@ int main(int argc, char* argv[])
         struc.title = name;
     }
     sqlite3_exec(
-        db, "create table if not exists first_pass (name text, host text, struc text, score real, lattice_score real, basis_score real, grp_sbgrp integer); ",
+        db, "create table if not exists first_pass (name text, host text, struc text, score real, lattice_score real, basis_score real, grp_sbgrp integer, host_pg text, struc_pg text); ",
         callback, 0, &zErrMsg);
 #pragma omp parallel for
     for (int i = 0; i < prim_list.size(); i++)
@@ -169,10 +169,10 @@ int main(int argc, char* argv[])
             {
                 const auto info_tuple = gus_entry(prim_list[i], non_prefiltered[j], gus_launch.count("sym-break-only"),lattice_weight);
                 int rc = sqlite3_exec(db,
-                                      ("INSERT into first_pass (name, host, struc, score, lattice_score, basis_score, grp_sbgrp) VALUES ('" + name +
+                                      ("INSERT into first_pass (name, host, struc, score, lattice_score, basis_score, grp_sbgrp, host_pg, struc_pg) VALUES ('" + name +
                                        "'," + "'" + prim_list[i].title + "'," + "'" + non_prefiltered[j].title + "'," +
                                        std::to_string(std::get<0>(info_tuple)) + "," + std::to_string(std::get<1>(info_tuple)) + 
-									   "," + std::to_string(std::get<2>(info_tuple)) + "," + std::to_string(std::get<3>(info_tuple)) + ");")
+									   "," + std::to_string(std::get<2>(info_tuple)) + "," + std::to_string(std::get<5>(info_tuple)) +"," + std::get<3>(info_tuple) +"," + std::get<4>(info_tuple) + ");")
                                           .c_str(),
                                       callback, 0, &zErrMsg);
                 if (rc != SQLITE_OK)
@@ -225,7 +225,7 @@ int main(int argc, char* argv[])
     }
     sqlite3_exec(
         db,
-        "create table if not exists second_pass (name text, host text, struc text, score real, lattice_score real, basis_score real, grp_sbgrp integer); ",
+        "create table if not exists second_pass (name text, host text, struc text, score real, lattice_score real, basis_score real, grp_sbgrp integer, host_pg text, struc_pg text); ",
         callback, 0, &zErrMsg);
 #pragma omp parallel for
     for (int i = 0; i < sym_strucs.size(); i++)
@@ -248,10 +248,10 @@ int main(int argc, char* argv[])
                 const auto info_tuple = gus_entry(sym_strucs[i], non_prefiltered[j], gus_launch.count("sym-break-only"),lattice_weight);
                 int rc =
                     sqlite3_exec(db,
-                                 ("INSERT into second_pass (name, host, struc, score, lattice_score, basis_score, grp_sbgrp) VALUES ('" + name +
+                                 ("INSERT into second_pass (name, host, struc, score, lattice_score, basis_score, grp_sbgrp, host_pg, struc_pg) VALUES ('" + name +
                                   "'," + "'" + sym_strucs[i].title + "'," + "'" + non_prefiltered[j].title + "'," +
                                   std::to_string(std::get<0>(info_tuple)) + "," + std::to_string(std::get<1>(info_tuple)) + 
-									   "," + std::to_string(std::get<2>(info_tuple)) + "," + std::to_string(std::get<3>(info_tuple)) + ");")
+									   "," + std::to_string(std::get<2>(info_tuple)) + "," + std::to_string(std::get<5>(info_tuple)) +"," + std::get<3>(info_tuple) +"," + std::get<4>(info_tuple) + ");")
                                      .c_str(),
                                  callback, 0, &zErrMsg);
                 if (rc != SQLITE_OK)
