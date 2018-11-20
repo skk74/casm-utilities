@@ -16,6 +16,7 @@
 #include <casm/strain/StrainConverter.hh>
 #include <fstream>
 #include <set>
+#include <functional>
 
 namespace
 {
@@ -112,12 +113,31 @@ void bring_coords_within(Rewrap::Structure* struc)
 bool is_planar(const Eigen::Matrix3d &cart_op){
 	//std::cout << cart_op << std::endl;
 	//std::cout << cart_op(2,0)==0 << cart_op(2,1)==0 << cart_op(2,2)==1 << cart_op(1,2) << cart_op(0,2))==0 << std::endl; 
-	return ( cart_op(2,0)==0 && cart_op(2,1)==0 && cart_op(2,2)==1 && cart_op(1,2) ==0 && cart_op(0,2)==0);
+	return ( CASM::almost_equal(cart_op(2,0),0.0) && CASM::almost_equal(cart_op(2,1),0.0) && CASM::almost_equal(cart_op(2,2),1.0) && CASM::almost_equal(cart_op(1,2),0.0) && CASM::almost_equal(cart_op(0,2),0.0));
 	
 }
 
-bool struc_equal(const Rewrap::Structure &lhs, const Rewrap::Structure &rhs){
-
+bool struc_equal(const Rewrap::Structure &lhs, const Rewrap::Structure &rhs) {
+	bool sites_same=true;
+	if (lhs.basis.size()!= rhs.basis.size()){
+		return false;
+	}
+	auto comparator= [](const CASM::Site &a, const CASM::Site &b){
+		return (std::make_tuple(std::round(a.const_cart()(0)*10000),std::round(a.const_cart()(1)*10000),std::round(a.const_cart()(2)*10000)) < 
+				std::make_tuple(std::round(b.const_cart()(0)*10000),std::round(b.const_cart()(1)*10000),std::round(b.const_cart()(2)*10000)));
+	};
+	auto lhs_basis_sorted= lhs.basis;
+	std::sort(lhs_basis_sorted.begin(),lhs_basis_sorted.end(),comparator);	
+	auto rhs_basis_sorted= rhs.basis;
+	std::sort(rhs_basis_sorted.begin(),rhs_basis_sorted.end(),comparator);	
+	for (int i = 0 ; i < lhs.basis.size() ; i++){
+		if (!(CASM::almost_equal(lhs_basis_sorted[i].const_cart()(0),rhs_basis_sorted[i].const_cart()(0)) &&
+			CASM::almost_equal(lhs_basis_sorted[i].const_cart()(1),rhs_basis_sorted[i].const_cart()(1)) &&
+			CASM::almost_equal(lhs_basis_sorted[i].const_cart()(2),rhs_basis_sorted[i].const_cart()(2)))){
+			sites_same=false;
+		} 
+	}
+	return (lhs.lattice().lat_column_mat() == rhs.lattice().lat_column_mat() && sites_same);
 }
 
 } // namespace
@@ -134,7 +154,7 @@ std::tuple<Rewrap::Structure, Eigen::Matrix3i, std::vector<int>> _minimally_dist
      pclex = new CASM::PrimClex(ref_struc, CASM::null_log());
 	}
 	CASM::ConfigMapper mapper(*pclex, lattice_weight);
-	mapper.restricted();
+	//mapper.restricted();
 	mapper.set_max_va_frac(0.5);
     CASM::ConfigDoF mapped_dof;
     CASM::Lattice mapped_lat;
@@ -160,7 +180,7 @@ std::tuple<Rewrap::Structure, Eigen::Matrix3i,std::vector<int>> _distorted_struc
      pclex = new CASM::PrimClex(ref_struc, CASM::null_log());
 	}
     CASM::ConfigMapper mapper(*pclex, lattice_weight);
-	mapper.restricted();
+	//mapper.restricted();
 	mapper.set_max_va_frac(0.5);
     CASM::ConfigDoF mapped_configdof;
     CASM::Lattice mapped_lat;
@@ -278,11 +298,6 @@ std::tuple<double,double,double,bool> gus_entry(const Rewrap::Structure& host_st
 		if (subgroup_index < tree_pair.first.size()){
 			grp_sbgrp= tree_pair.second[subgroup_index].size()==2;
 		}
-		//std::cout << "DEBUGGING: host_struc.title " << host_struc.title  << std::endl;
-		//std::cout << "DEBUGGING: test_struc.title " << test_struc.title  << std::endl;
-		//std::cout << "DEBUGGING: host_struc.factor_group().name " << host_struc.factor_group().get_name()  << std::endl;
-		//std::cout << "DEBUGGING: test_struc.factor_group().name " << test_struc.factor_group().get_name()  << std::endl;
-		//std::cout << "DEBUGGING: host_struc.factor_group().size() / config.multiplicity()" << host_struc.factor_group().size() / config.multiplicity() << std::endl;
 		std::set<int> fl_sizes;
 		for ( int i=0;i< tree_pair.second.size();++i){
 			if (tree_pair.second[i].size()==2){
@@ -292,9 +307,8 @@ std::tuple<double,double,double,bool> gus_entry(const Rewrap::Structure& host_st
 		for (auto size : fl_sizes){
 			std::cout << "first level subgroup size: " << size << std::endl;
 		}	
-        //grp_sbgrp = (floor(ratio) == ratio && std::find(fl_sizes.begin(),fl_sizes.end(),host_struc.factor_group().size()/config.multiplicity())!=fl_sizes.end());
     }
-    return std::make_tuple(score, sc, bc, grp_sbgrp);
+    return std::make_tuple(score, sc, bc, host_stru.factor_group().get_name(), test_struc.factor_group().get_name(), grp_sbgrp);
 }
 
 std::vector<Rewrap::Structure> read_and_rename_json(const Rewrap::fs::path& struc_folder)
@@ -391,18 +405,25 @@ std::vector<Rewrap::Structure> enumerate_layer_equivalents(const Rewrap::Structu
 		if (!is_planar(op.matrix())){
 			continue;
 		}
+		std::cout << "Plane group op" << op.matrix() << std::endl;
 		auto cpy = original;
 		for (auto &site : cpy.basis){
 			site = CASM::copy_apply(op,site);
 		}
 		bring_coords_within(&cpy);	
-		equivs.push_back(cpy);
+		if (std::find_if(equivs.begin(),equivs.end(),[&cpy](const Rewrap::Structure &struc){return struc_equal(struc,cpy);})==equivs.end()){
+			equivs.push_back(cpy);	
+		}
 		Frankenstein::shift_coords_by(&cpy,Eigen::Vector3d(1.0/3.0,2.0/3.0,0));
 		bring_coords_within(&cpy);	
-		equivs.push_back(cpy);
+		if (std::find_if(equivs.begin(),equivs.end(),[&cpy](const Rewrap::Structure &struc){return struc_equal(struc,cpy);})==equivs.end()){
+			equivs.push_back(cpy);	
+		}
 		Frankenstein::shift_coords_by(&cpy,Eigen::Vector3d(1.0/3.0,2.0/3.0,0));
 		bring_coords_within(&cpy);	
-		equivs.push_back(cpy);
+		if (std::find_if(equivs.begin(),equivs.end(),[&cpy](const Rewrap::Structure &struc){return struc_equal(struc,cpy);})==equivs.end()){
+			equivs.push_back(cpy);	
+		}
 	}
 	return equivs;
 }

@@ -3,6 +3,7 @@
 #include <pybind11/stl.h>
 
 #include "casmutils/structure.hpp"
+#include "casmutils/stage.hpp"
 #include <casm/crystallography/Structure.hh>
 #include <string>
 
@@ -31,6 +32,16 @@ void to_poscar(const Rewrap::Structure& writeable, const std::string& filename)
     return;
 }
 
+int num_atoms(const Rewrap::Structure& struc)
+{
+	return struc.basis.size();
+}
+
+double c_vec_length(const Rewrap::Structure& struc)
+{
+	return struc.lattice().length(2);
+}
+
 PYBIND11_MODULE(_structure, m)
 {
     using namespace pybind11;
@@ -44,8 +55,11 @@ PYBIND11_MODULE(_structure, m)
         /* .def("__repr__", &Structure::to_string) */
         .def("__str__", &__str__);
 
+    m.def("num_atoms", num_atoms);
+    m.def("c_vec_length",c_vec_length);
     m.def("from_poscar", from_poscar);
     m.def("to_poscar", to_poscar);
+    m.def("structure_map", gus_entry);
     /* m.def("make_niggli", (Rewrap::Structure(*)(const Rewrap::Structure&)) Simplicity::make_niggli); */
 }
 } // namespace WrapPy
