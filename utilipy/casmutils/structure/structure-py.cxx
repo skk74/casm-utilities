@@ -60,6 +60,7 @@ PYBIND11_MODULE(_structure, m)
     m.def("from_poscar", from_poscar);
     m.def("to_poscar", to_poscar);
     m.def("structure_map", gus_entry);
+    m.def("symmetrize", symmetrize);
     /* m.def("make_niggli", (Rewrap::Structure(*)(const Rewrap::Structure&)) Simplicity::make_niggli); */
 }
 } // namespace WrapPy

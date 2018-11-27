@@ -370,6 +370,7 @@ Rewrap::Structure symmetrize(const Rewrap::Structure& struc, double tol)
         lat.set_tol(tol * f);
 		CASM::SymGroup pg;
         lat.generate_point_group(pg);
+		std::cout << pg.size() << std::endl;
         if (point_group_sizes.find(pg.size()) == point_group_sizes.end())
         {
             continue;
