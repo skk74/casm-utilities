@@ -292,7 +292,7 @@ std::tuple<double,double,double,std::string,std::string,bool> gus_entry(const Re
             1.0 * host_struc.factor_group().size() / config.multiplicity() / test_struc.factor_group().size();
 		std::vector<int> sbgrp_sizes;
 		auto tree_pair=host_struc.factor_group().unique_subgroup_tree();
-		std::string curr_name=test_struc.factor_group().get_name();
+		std::string curr_name=test_struc.primitive().factor_group().get_name();
 		auto subgroup_it=std::find_if(tree_pair.first.begin(),tree_pair.first.end(),[&curr_name](const CASM::SymGroup&g){return g.get_name()==curr_name;});
 		auto subgroup_index=std::distance(tree_pair.first.begin(),subgroup_it);
 		if (subgroup_index < tree_pair.first.size()){
@@ -308,7 +308,7 @@ std::tuple<double,double,double,std::string,std::string,bool> gus_entry(const Re
 			std::cout << "first level subgroup size: " << size << std::endl;
 		}	
     }
-    return std::make_tuple(score, sc, bc, host_struc.factor_group().get_name(), test_struc.factor_group().get_name(), grp_sbgrp);
+    return std::make_tuple(score, sc, bc, host_struc.factor_group().get_name(), test_struc.primitive().factor_group().get_name(), grp_sbgrp);
 }
 
 std::vector<Rewrap::Structure> read_and_rename_json(const Rewrap::fs::path& struc_folder)
