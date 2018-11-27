@@ -101,7 +101,7 @@ int main(int argc, char* argv[])
                                       ("INSERT into prefilter (name, host, struc, score,lattice_score, basis_score, grp_sbgrp, host_pg, struc_pg) VALUES ('" + name +
                                        "'," + "'" + lib_list[i].title + "'," + "'" + struc_list[j].title + "'," +
                                        std::to_string(std::get<0>(info_tuple)) + "," + std::to_string(std::get<1>(info_tuple)) + 
-									   "," + std::to_string(std::get<2>(info_tuple)) + "," + std::to_string(std::get<5>(info_tuple)) +"," + std::get<3>(info_tuple) +"," + std::get<4>(info_tuple) + ");")
+									   "," + std::to_string(std::get<2>(info_tuple)) + "," + std::to_string(std::get<5>(info_tuple)) +",'" + std::get<3>(info_tuple) +"','" + std::get<4>(info_tuple) + "');")
                                           .c_str(),
                                       callback, 0, &zErrMsg);
                 if (rc != SQLITE_OK)
@@ -172,7 +172,7 @@ int main(int argc, char* argv[])
                                       ("INSERT into first_pass (name, host, struc, score, lattice_score, basis_score, grp_sbgrp, host_pg, struc_pg) VALUES ('" + name +
                                        "'," + "'" + prim_list[i].title + "'," + "'" + non_prefiltered[j].title + "'," +
                                        std::to_string(std::get<0>(info_tuple)) + "," + std::to_string(std::get<1>(info_tuple)) + 
-									   "," + std::to_string(std::get<2>(info_tuple)) + "," + std::to_string(std::get<5>(info_tuple)) +"," + std::get<3>(info_tuple) +"," + std::get<4>(info_tuple) + ");")
+									   "," + std::to_string(std::get<2>(info_tuple)) + "," + std::to_string(std::get<5>(info_tuple)) +",'" + std::get<3>(info_tuple) +"','" + std::get<4>(info_tuple) + "');")
                                           .c_str(),
                                       callback, 0, &zErrMsg);
                 if (rc != SQLITE_OK)
@@ -251,7 +251,7 @@ int main(int argc, char* argv[])
                                  ("INSERT into second_pass (name, host, struc, score, lattice_score, basis_score, grp_sbgrp, host_pg, struc_pg) VALUES ('" + name +
                                   "'," + "'" + sym_strucs[i].title + "'," + "'" + non_prefiltered[j].title + "'," +
                                   std::to_string(std::get<0>(info_tuple)) + "," + std::to_string(std::get<1>(info_tuple)) + 
-									   "," + std::to_string(std::get<2>(info_tuple)) + "," + std::to_string(std::get<5>(info_tuple)) +"," + std::get<3>(info_tuple) +"," + std::get<4>(info_tuple) + ");")
+									   "," + std::to_string(std::get<2>(info_tuple)) + "," + std::to_string(std::get<5>(info_tuple)) +",'" + std::get<3>(info_tuple) +"','" + std::get<4>(info_tuple) + "');")
                                      .c_str(),
                                  callback, 0, &zErrMsg);
                 if (rc != SQLITE_OK)
