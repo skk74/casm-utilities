@@ -305,7 +305,7 @@ std::tuple<double,double,double,std::string,std::string,bool> gus_entry(const Re
 			}
 		}
 		for (auto size : fl_sizes){
-			std::cout << "first level subgroup size: " << size << std::endl;
+			//std::cout << "first level subgroup size: " << size << std::endl;
 		}	
     }
     return std::make_tuple(score, sc, bc, host_struc.factor_group().get_name(), test_struc.primitive().factor_group().get_name(), grp_sbgrp);
