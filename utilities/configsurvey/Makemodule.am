@@ -1,0 +1,12 @@
+bin_PROGRAMS += _casmutils-configsurvey
+
+_casmutils_configsurvey_SOURCES=\
+						  utilities/configsurvey/configsurvey.cpp
+						  
+
+
+_casmutils_configsurvey_LDADD=\
+						libcasmutils.la\
+						$(BOOST_SYSTEM_LIB)\
+						$(BOOST_FILESYSTEM_LIB)\
+						$(BOOST_PROGRAM_OPTIONS_LIB)

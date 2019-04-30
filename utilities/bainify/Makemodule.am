@@ -1,0 +1,11 @@
+bin_PROGRAMS += _casmutils-bainify
+
+_casmutils_bainify_SOURCES=\
+						  utilities/bainify/bainify.cpp
+
+
+_casmutils_bainify_LDADD=\
+						libcasmutils.la\
+						$(BOOST_SYSTEM_LIB)\
+						$(BOOST_FILESYSTEM_LIB)\
+						$(BOOST_PROGRAM_OPTIONS_LIB)
