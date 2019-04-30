@@ -140,6 +140,58 @@ bool struc_equal(const Rewrap::Structure &lhs, const Rewrap::Structure &rhs) {
 	return (lhs.lattice().lat_column_mat() == rhs.lattice().lat_column_mat() && sites_same);
 }
 
+const Rewrap::Structure FCC_prim() {
+
+    // lattice vectors as cols
+    Eigen::Matrix3d lat;
+    lat << 0.0, 2.0, 2.0,
+        2.0, 0.0, 2.0,
+        2.0, 2.0, 0.0;
+
+    CASM::BasicStructure<CASM::Site> struc {CASM::Lattice{lat}};
+    struc.title = "FCC";
+
+    CASM::Molecule A = CASM::Molecule::make_atom("A");
+    CASM::Molecule B = CASM::Molecule::make_atom("B");
+
+    struc.basis.push_back(CASM::Site(CASM::Coordinate(Eigen::Vector3d::Zero(), struc.lattice(), CASM::CART), {A, B}));
+
+    return CASM::Structure(struc);
+}
+const Rewrap::Structure BCC_prim() {
+
+    // lattice vectors as cols
+    Eigen::Matrix3d lat;
+    lat << -1.5, 1.5, 1.5,
+        1.5, -1.5, 1.5,
+        1.5, 1.5, -1.5;
+
+    CASM::BasicStructure<CASM::Site> struc {CASM::Lattice{lat}};
+    struc.title = "BCC";
+
+    CASM::Molecule A = CASM::Molecule::make_atom("A");
+    CASM::Molecule B = CASM::Molecule::make_atom("B");
+
+    struc.basis.push_back(CASM::Site(CASM::Coordinate(Eigen::Vector3d::Zero(), struc.lattice(), CASM::CART), {A, B}));
+
+    return CASM::Structure(struc);
+}
+
+void scale_all_strucs(std::vector<Rewrap::Structure>& all_strucs,double scale){
+	double val= std::pow(scale,1.0/3.0);
+	Eigen::Matrix3d def;
+	def << val, 0 , 0,
+		   0 , val, 0,
+		   0, 0, val;
+	for (auto &struc : all_strucs){
+		struc.set_lattice(CASM::Lattice(def*struc.lattice().lat_column_mat()),CASM::FRAC);	
+	}
+	return;
+
+}
+
+
+
 } // namespace
 
 
@@ -266,6 +318,7 @@ std::vector<Rewrap::Structure> deformation_pathway(const Rewrap::Structure& init
 std::tuple<double,double,double,std::string,std::string,bool> gus_entry(const Rewrap::Structure& host_struc, const Rewrap::Structure& test_struc,
                                   bool sym_break_only,double lattice_weight)
 {
+	try{
     double score = 1e9;
     bool grp_sbgrp = false;
     CASM::PrimClex pclex(host_struc, CASM::null_log());
@@ -309,6 +362,12 @@ std::tuple<double,double,double,std::string,std::string,bool> gus_entry(const Re
 		}	
     }
     return std::make_tuple(score, sc, bc, host_struc.factor_group().get_name(), test_struc.primitive().factor_group().get_name(), grp_sbgrp);
+	}
+	catch {
+	
+    return std::make_tuple(1e9, 1e9, 1e9, "bust", "bust",0);
+	
+	}
 }
 
 std::vector<Rewrap::Structure> read_and_rename_json(const Rewrap::fs::path& struc_folder)
@@ -428,6 +487,84 @@ std::vector<Rewrap::Structure> enumerate_layer_equivalents(const Rewrap::Structu
 	}
 	return equivs;
 }
+
+
+///This function takes a fcc or bcc structure and returns a reoriented structure in a cartesian 
+/// frame of reference where <100> directions are along x,y, z along with all the variants of the
+/// bain path distortion in the cartesian space.
+std::vector<Rewrap::Structure> bainify(const Rewrap::Structure &original){
+	std::vector<Rewrap::Structure> all_strucs;
+	CASM::Structure copy_input = original;
+    CASM::PrimClex fccpclex(FCC_prim(),CASM::null_log());	
+    CASM::PrimClex bccpclex(BCC_prim(),CASM::null_log());	
+	CASM::ConfigMapper fccmapper(fccpclex,0.5);
+	CASM::ConfigMapper bccmapper(bccpclex,0.5);
+    CASM::ConfigDoF fcc_mapped_dof;
+    CASM::Lattice fcc_mapped_lat;
+    CASM::ConfigDoF bcc_mapped_dof;
+    CASM::Lattice bcc_mapped_lat;
+	fccmapper.struc_to_configdof(copy_input,fcc_mapped_dof,fcc_mapped_lat);
+	bccmapper.struc_to_configdof(copy_input,bcc_mapped_dof,bcc_mapped_lat);
+	double fcc_score = (CASM::ConfigMapping::strain_cost(copy_input.lattice(),fcc_mapped_dof,copy_input.basis.size())+CASM::ConfigMapping::basis_cost(fcc_mapped_dof,copy_input.basis.size()))/2.0;
+	double bcc_score = (CASM::ConfigMapping::strain_cost(copy_input.lattice(),bcc_mapped_dof,copy_input.basis.size())+CASM::ConfigMapping::basis_cost(bcc_mapped_dof,copy_input.basis.size()))/2.0;
+	Eigen::Matrix3d x_bain;
+	Eigen::Matrix3d y_bain;
+	Eigen::Matrix3d z_bain;
+	if (fcc_score < bcc_score){
+		x_bain << 1.0/std::pow(2.0,1.0/3.0), 0 , 0,
+			      0 , std::pow(2.0,0.5)/std::pow(2.0,1.0/3.0), 0,
+				  0 , 0 , std::pow(2.0,0.5)/std::pow(2.0,1.0/3.0);
+		y_bain << std::pow(2.0,0.5)/std::pow(2.0,1.0/3.0), 0 , 0,
+			      0 , 1.0/std::pow(2.0,1.0/3.0), 0,
+				  0 , 0 , std::pow(2.0,0.5)/std::pow(2.0,1.0/3.0);
+		z_bain << std::pow(2.0,0.5)/std::pow(2.0,1.0/3.0), 0 , 0,
+			      0 , std::pow(2.0,0.5)/std::pow(2.0,1.0/3.0), 0,
+				  0 , 0 , 1.0/std::pow(2.0,1.0/3.0);
+		CASM::Supercell scel(&fccpclex,fcc_mapped_lat);
+		fcc_mapped_dof.clear_deformation();
+		Rewrap::Structure ideal_input=_apply_configdof(scel,fcc_mapped_dof);	
+		all_strucs.push_back(ideal_input);
+		Rewrap::Structure x_bain_struc=ideal_input;
+		Rewrap::Structure y_bain_struc=ideal_input;
+		Rewrap::Structure z_bain_struc=ideal_input;
+		x_bain_struc.set_lattice(CASM::Lattice(x_bain*ideal_input.lattice().lat_column_mat()),CASM::FRAC);
+		y_bain_struc.set_lattice(CASM::Lattice(y_bain*ideal_input.lattice().lat_column_mat()),CASM::FRAC);
+		z_bain_struc.set_lattice(CASM::Lattice(z_bain*ideal_input.lattice().lat_column_mat()),CASM::FRAC);
+		all_strucs.push_back(x_bain_struc);
+		all_strucs.push_back(y_bain_struc);
+		all_strucs.push_back(z_bain_struc);
+	}
+	else {
+		x_bain << 1.0/std::pow(0.5,1.0/3.0), 0 , 0,
+			      0 , 1.0/std::pow(2.0,0.5)/std::pow(0.5,1.0/3.0), 0,
+				  0 , 0 , 1.0/std::pow(2.0,0.5)/std::pow(0.5,1.0/3.0);
+		y_bain << 1.0/std::pow(2.0,0.5)/std::pow(0.5,1.0/3.0), 0 , 0,
+			      0 , 1.0/std::pow(0.5,1.0/3.0), 0,
+				  0 , 0 , 1.0/std::pow(2.0,0.5)/std::pow(0.5,1.0/3.0);
+		z_bain << 1.0/std::pow(2.0,0.5)/std::pow(0.5,1.0/3.0), 0 , 0,
+			      0 , 1.0/std::pow(2.0,0.5)/std::pow(0.5,1.0/3.0), 0,
+				  0 , 0 , 1.0/std::pow(0.5,1.0/3.0);
+		CASM::Supercell scel(&bccpclex,bcc_mapped_lat);
+		bcc_mapped_dof.clear_deformation();
+		Rewrap::Structure ideal_input=_apply_configdof(scel,bcc_mapped_dof);	
+		all_strucs.push_back(ideal_input);
+		Rewrap::Structure x_bain_struc=ideal_input;
+		Rewrap::Structure y_bain_struc=ideal_input;
+		Rewrap::Structure z_bain_struc=ideal_input;
+		x_bain_struc.set_lattice(CASM::Lattice(x_bain*ideal_input.lattice().lat_column_mat()),CASM::FRAC);
+		y_bain_struc.set_lattice(CASM::Lattice(y_bain*ideal_input.lattice().lat_column_mat()),CASM::FRAC);
+		z_bain_struc.set_lattice(CASM::Lattice(z_bain*ideal_input.lattice().lat_column_mat()),CASM::FRAC);
+		all_strucs.push_back(x_bain_struc);
+		all_strucs.push_back(y_bain_struc);
+		all_strucs.push_back(z_bain_struc);
+	}
+	double scale=copy_input.lattice().vol()/all_strucs[0].lattice().vol();
+	scale_all_strucs(all_strucs,scale);
+	return all_strucs;
+
+}
+
+
 
 #include <fstream>
 #include <set>

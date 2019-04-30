@@ -55,6 +55,10 @@ Rewrap::Structure symmetrize(const Rewrap::Structure &struc, double tol);
 ///due to operation of the lattice point group + basis shifts [1/3, 2/3, 0] and [2/3, 1/3, 0]
 std::vector<Rewrap::Structure> enumerate_layer_equivalents(const Rewrap::Structure &original);
 
+///This function takes a fcc or bcc structure and returns a reoriented structure in a cartesian 
+/// frame of reference where <100> directions are along x,y, z along with all the variants of the
+/// bain path distortion in the cartesian space.
+std::vector<Rewrap::Structure> bainify(const Rewrap::Structure &original);
 
 namespace Viewpoint
 {

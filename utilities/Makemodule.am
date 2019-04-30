@@ -9,5 +9,7 @@ include utilities/vacuum_pack/Makemodule.am
 include utilities/inflate/Makemodule.am
 include utilities/deformation_pathway/Makemodule.am
 include utilities/gus/Makemodule.am
+include utilities/configsurvey/Makemodule.am
 include utilities/reorient/Makemodule.am
 include utilities/equivalent_layers/Makemodule.am
+include utilities/bainify/Makemodule.am
