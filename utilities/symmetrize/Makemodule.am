@@ -1,0 +1,11 @@
+bin_PROGRAMS += _casmutils-symmetrize
+
+_casmutils_symmetrize_SOURCES=\
+						  utilities/symmetrize/symmetrize.cpp
+
+
+_casmutils_symmetrize_LDADD=\
+						libcasmutils.la\
+						$(BOOST_SYSTEM_LIB)\
+						$(BOOST_FILESYSTEM_LIB)\
+						$(BOOST_PROGRAM_OPTIONS_LIB)
