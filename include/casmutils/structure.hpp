@@ -8,18 +8,20 @@
 
 namespace CASM
 {
+	namespace xtal{
     class Structure;
+	}
 }
 
 namespace Rewrap
 {
 
-class Structure : public CASM::Structure
+class Structure : public CASM::xtal::Structure
 {
 public:
     Structure() = delete;
 
-    Structure(CASM::Structure init_struc);
+    Structure(CASM::xtal::Structure init_struc);
 
     bool is_primitive() const;
 
